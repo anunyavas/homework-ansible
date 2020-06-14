@@ -1,0 +1,45 @@
+---
+- name: build application
+  hosts: build
+  tasks:
+   - name: ensure git is installed
+     apt:
+       name: git
+       state: present
+       update_cache: yes
+   - name: get repo from github
+     git:
+       repo: https://github.com/boxfuse/boxfuse-sample-java-war-hello.git
+       dest: /root/boxfuse
+   - name: ensure maven is installed
+     apt:
+       name: maven
+       state: present
+   - name: run build
+     shell: cd /root/boxfuse && mvn package
+   - name: copy artifact
+     fetch:
+       src: /root/boxfuse/target/hello-1.0.war
+       dest: /tmp/ 
+- name: run application
+  hosts: prod
+  tasks:
+    - name: ensure openjdk and tomcat are installed
+      apt:
+        name: tomcat8
+        state: present
+        update_cache: yes
+    - name: ensure artifact is in webapp directory
+      copy:
+        src: /tmp/10.129.0.14/root/boxfuse/target/hello-1.0.war
+        dest: /var/lib/tomcat8/webapps
+    - name: restart tomcat service
+      service:
+        name: tomcat8
+        state: restarted
+    - name: wait while boxfuse is starting
+      pause:
+        minutes: 1
+    - name: check if application is running
+      uri:
+        url: http://10.129.0.24:8080/hello-1.0/
